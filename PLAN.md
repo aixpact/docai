@@ -97,6 +97,16 @@ integration branch, used here in place of a separate `develop`).
 - [x] Final `pre-commit run --all-files` + `pytest` clean on the
       integration branch; push `claude/documentai-entity-extraction-wexhem`.
 
+## 10. Cookbook — `feat/cookbook`
+- [x] `cookbook/`: one runnable example per use case (basic extraction,
+      latency-vs-cost tradeoff, evaluation against ground truth, human
+      review round-trip, reviewer agreement, ADK tool), backed by a
+      shared `FakeDocumentAiClient` so the whole cookbook runs with zero
+      GCP access.
+- [x] `tests/test_cookbook.py`: smoke-tests every script's `main()` so
+      the cookbook stays correct as the library's API evolves.
+- [x] Linked from the main `README.md`.
+
 ## Explicitly out of scope for this POC
 - Provisioning/Terraform execution (blocked by Workbench IAM restrictions —
   owned by the Azure DevOps pipeline).

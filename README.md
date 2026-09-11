@@ -8,7 +8,8 @@ authenticated via a **Vertex AI service account** (Application Default
 Credentials, no key files).
 
 See [`PLAN.md`](PLAN.md) for the phased implementation plan and its
-current status.
+current status, and [`cookbook/`](cookbook/) for runnable, zero-GCP-access
+examples of every use case below.
 
 ## Why
 
@@ -85,6 +86,10 @@ injected and mocked in tests — the suite runs with no network access and
 no real GCP project.
 
 ## Usage
+
+The snippets below assume a real, provisioned processor; for runnable
+versions that work with zero GCP access (via a canned fake client), see
+[`cookbook/`](cookbook/).
 
 ### Define a schema and run extraction
 
