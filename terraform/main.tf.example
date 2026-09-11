@@ -1,0 +1,75 @@
+# Illustrative only — NOT applied from this repository or this Workbench.
+#
+# This names the resources docai_poc.config.Settings expects to already
+# exist (see terraform/README.md). The Azure DevOps pipeline that owns
+# real provisioning may structure modules, state, and variables
+# differently; treat this as a reference for *what*, not *how*.
+
+variable "project_id" {
+  type = string
+}
+
+variable "location" {
+  type    = string
+  default = "us"
+}
+
+resource "google_document_ai_processor" "native" {
+  project      = var.project_id
+  location     = var.location
+  display_name = "docai-poc-native-extractor"
+  type         = "CUSTOM_EXTRACTION_PROCESSOR"
+}
+
+resource "google_document_ai_processor" "scanned" {
+  project      = var.project_id
+  location     = var.location
+  display_name = "docai-poc-scanned-extractor"
+  type         = "CUSTOM_EXTRACTION_PROCESSOR"
+}
+
+resource "google_storage_bucket" "batch_input" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-docai-poc-batch-input"
+  location                    = var.location
+  uniform_bucket_level_access = true
+}
+
+resource "google_storage_bucket" "batch_output" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-docai-poc-batch-output"
+  location                    = var.location
+  uniform_bucket_level_access = true
+}
+
+resource "google_service_account" "workbench_runtime" {
+  project      = var.project_id
+  account_id   = "docai-poc-workbench"
+  display_name = "Document AI POC Workbench runtime"
+}
+
+resource "google_project_iam_member" "documentai_api_user" {
+  project = var.project_id
+  role    = "roles/documentai.apiUser"
+  member  = "serviceAccount:${google_service_account.workbench_runtime.email}"
+}
+
+resource "google_storage_bucket_iam_member" "batch_input_writer" {
+  bucket = google_storage_bucket.batch_input.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.workbench_runtime.email}"
+}
+
+resource "google_storage_bucket_iam_member" "batch_output_writer" {
+  bucket = google_storage_bucket.batch_output.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.workbench_runtime.email}"
+}
+
+output "docai_native_processor_id" {
+  value = google_document_ai_processor.native.id
+}
+
+output "docai_scanned_processor_id" {
+  value = google_document_ai_processor.scanned.id
+}
