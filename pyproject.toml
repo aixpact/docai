@@ -1,0 +1,52 @@
+[project]
+name = "docai-poc"
+version = "0.1.0"
+description = "POC: custom entity extraction from PDFs using Google Document AI, ADK and Vertex AI."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.13,<3",
+  "pydantic-settings>=2.15,<3",
+  "google-cloud-documentai>=3.15,<4",
+  "google-cloud-storage>=3.14,<4",
+  "google-adk>=2.9,<3",
+  "pypdf>=6.18,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.1,<10",
+  "pytest-mock>=3.15,<4",
+  "reportlab>=5.0,<6",
+  "ruff>=0.14,<1",
+  "pyright>=1.1,<2",
+  "pre-commit>=4.6,<5",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["docai_poc"]
+
+[tool.pyright]
+include = ["src", "tests"]
+venvPath = "."
+venv = ".venv"
+typeCheckMode = "basic"
