@@ -41,15 +41,21 @@ Each stage is an independently tested module under `src/docai_poc/`:
 
 ## Setup
 
-Requires Python 3.11+. From a Google Workbench (or any environment with
+Requires Python 3.11+ and [`uv`](https://docs.astral.sh/uv/) as the
+dependency manager. From a Google Workbench (or any environment with
 Application Default Credentials already resolving to a Vertex AI service
 account bound to the target project):
 
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-pre-commit install
+uv sync              # creates .venv and installs the project + dev group from uv.lock
+uv run pre-commit install
 ```
+
+`uv sync` resolves against the committed `uv.lock`, so every install is
+reproducible. Run any project command through `uv run <cmd>` (or activate
+`.venv` as usual); add a runtime dependency with `uv add <package>` and a
+dev-only one with `uv add --dev <package>`, then commit the updated
+`pyproject.toml` and `uv.lock` together.
 
 Configure via environment variables (or a `.env` file), all `DOCAI_`-prefixed:
 
@@ -70,8 +76,8 @@ See [`terraform/README.md`](terraform/README.md).
 ## Running the tests
 
 ```bash
-pytest
-pre-commit run --all-files
+uv run pytest
+uv run pre-commit run --all-files
 ```
 
 All Google Cloud calls (`DocumentProcessorServiceClient`, GCS) are
