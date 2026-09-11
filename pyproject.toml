@@ -49,4 +49,4 @@ known-first-party = ["docai_poc"]
 include = ["src", "tests"]
 venvPath = "."
 venv = ".venv"
-typeCheckMode = "basic"
+typeCheckingMode = "basic"
