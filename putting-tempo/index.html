@@ -1,0 +1,571 @@
+<title>Putting Tempo Oscillator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an instrument panel. Big face-on pendulum stage on the left, the dials on the right,
+   and a "same time, different length" ladder underneath. Stacks to one column on phones. */
+:root {
+  --bg: #edf1ea;
+  --surface: #f8faf6;
+  --ink: #15231b;
+  --muted: #5a6a5f;
+  --line: #cad4c9;
+  --green: #1d6a46;
+  --green-soft: #d6e7da;
+  --beat: #b5761b;
+  --beat-soft: #f2e2c4;
+  --ball: #ffffff;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1611; --surface: #15201a; --ink: #e3ebe4; --muted: #91a397; --line: #2a3a30;
+    --green: #52c088; --green-soft: #1d3527; --beat: #e6a947; --beat-soft: #3a2c14; --ball: #f4f6f2;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1611; --surface: #15201a; --ink: #e3ebe4; --muted: #91a397; --line: #2a3a30;
+  --green: #52c088; --green-soft: #1d3527; --beat: #e6a947; --beat-soft: #3a2c14; --ball: #f4f6f2;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 48px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+
+header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 24px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(28px, 4.4vw, 44px); line-height: 1.02; margin: 0; letter-spacing: -0.02em; text-wrap: balance; }
+h1 span { color: var(--green); }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+h2 { font-family: var(--display); font-weight: 700; font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+.label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+
+.main { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; display: grid; }
+.canvas-box { position: relative; width: 100%; aspect-ratio: 16 / 10; max-width: 100%; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.beats { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); align-items: center; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; border: 1px solid var(--line); font-family: var(--mono); font-size: 13px; color: var(--muted); transition: background .08s, color .08s, border-color .08s; }
+.chip i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; display: block; }
+.chip.tic.on { background: var(--beat-soft); color: var(--beat); border-color: var(--beat); }
+.chip.toc.on { background: var(--green-soft); color: var(--green); border-color: var(--green); }
+.chip.on i { background: currentColor; }
+.chip b { font-weight: 500; color: var(--ink); }
+.beats .spacer { flex: 1; }
+.timing { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.readout { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.readout > div { padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.readout > div + div { border-left: 1px solid var(--line); }
+.readout .v { font-family: var(--mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.readout .v small { font-size: 13px; color: var(--muted); margin-left: 2px; }
+.readout .big .v { color: var(--beat); font-size: 26px; }
+@media (max-width: 560px) {
+  .readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .readout > div:nth-child(3) { border-left: 0; }
+  .readout > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+}
+
+.panel { display: grid; gap: 18px; }
+.go { display: flex; gap: 10px; }
+button { font: inherit; cursor: pointer; }
+.btn-go { flex: 1; font-family: var(--display); font-weight: 700; font-size: 20px; padding: 14px 18px; border-radius: var(--radius); border: 0; background: var(--green); color: var(--surface); }
+.btn-go[aria-pressed="true"] { background: var(--ink); }
+.btn-sq { width: 56px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: 13px; font-weight: 600; }
+.btn-sq[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--beat); outline-offset: 2px; }
+
+.field { display: grid; gap: 6px; }
+.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.field-head output { font-family: var(--mono); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.hint { font-size: 12.5px; color: var(--muted); margin: 0; }
+input[type="range"] { width: 100%; accent-color: var(--green); margin: 4px 0 0; }
+#dist { accent-color: var(--beat); }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; font-size: 13px; font-weight: 500; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--green-soft); color: var(--ink); }
+.seg.full { display: grid; grid-template-columns: 1fr 1fr; }
+
+.distance-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; display: grid; gap: 8px; }
+.distance-card .field-head output { font-size: 26px; color: var(--beat); }
+
+details.more { border-top: 1px solid var(--line); padding-top: 12px; }
+details.more summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.check input { accent-color: var(--green); width: 16px; height: 16px; }
+
+.ladder { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; }
+.ladder-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.ladder-head p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.rows { display: grid; gap: 4px; }
+.row { display: grid; grid-template-columns: 64px minmax(0, 1fr) 72px; gap: 12px; align-items: center; padding: 5px 8px; border-radius: 6px; border: 0; background: transparent; color: var(--ink); text-align: left; font-variant-numeric: tabular-nums; }
+.row:hover { background: var(--bg); }
+.row.cur { background: var(--beat-soft); }
+.row .d { font-family: var(--mono); font-size: 13.5px; }
+.row .bar { height: 12px; position: relative; }
+.row .bar span { position: absolute; inset: 0 auto 0 0; background: var(--green); border-radius: 0 3px 3px 0; opacity: .85; }
+.row.cur .bar span { background: var(--beat); opacity: 1; }
+.row .len { font-family: var(--mono); font-size: 13.5px; text-align: right; }
+.row .t { display: none; }
+
+.notes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; color: var(--muted); font-size: 13.5px; }
+.notes h3 { font-size: 13px; color: var(--ink); margin: 0 0 4px; font-weight: 600; }
+.notes p { margin: 0; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+.warn { color: var(--beat); }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Putting Tempo <span>Oscillator</span></h1>
+      <p class="lede">One tempo for every putt. The tic starts the backstroke, the toc lands on impact, and only the length of the stroke changes with distance.</p>
+    </div>
+  </header>
+
+  <div class="main">
+    <section class="stage" aria-label="Stroke animation">
+      <div class="canvas-box"><canvas id="cv" role="img" aria-label="Face-on view of a putting stroke swinging like a pendulum over a centimetre ruler"></canvas></div>
+      <div class="beats">
+        <span class="chip tic" id="chipTic"><i></i><b>tic</b> takeaway</span>
+        <span class="chip toc" id="chipToc"><i></i><b>toc</b> impact</span>
+        <span class="spacer"></span>
+        <span class="timing" id="timing">back 0.50 s · through 0.25 s</span>
+      </div>
+      <div class="readout">
+        <div class="big"><span class="label">Backstroke</span><span class="v" id="rBack">24<small>cm</small></span></div>
+        <div><span class="label">Follow-through</span><span class="v" id="rThru">24<small>cm</small></span></div>
+        <div><span class="label">Putter speed</span><span class="v" id="rHead">1.5<small>m/s</small></span></div>
+        <div><span class="label">Ball speed</span><span class="v" id="rBall">1.9<small>m/s</small></span></div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Settings">
+      <div class="go">
+        <button class="btn-go" id="go" aria-pressed="false">Start tempo</button>
+        <button class="btn-sq" id="snd" aria-pressed="true" title="Sound on or off">Sound</button>
+      </div>
+
+      <div class="distance-card">
+        <div class="field-head">
+          <label class="label" for="dist">Putt distance</label>
+          <div class="seg" role="group" aria-label="Units">
+            <button id="uM" aria-pressed="true">m</button><button id="uF" aria-pressed="false">ft</button>
+          </div>
+        </div>
+        <div class="field-head"><output id="distOut">3.0 m</output><span class="hint" id="distHint">backstroke 24 cm</span></div>
+        <input type="range" id="dist" min="0.5" max="20" step="0.5" value="3">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><label class="label" for="bpm">Tempo, tic to toc</label><output id="bpmOut">80 BPM</output></div>
+        <input type="range" id="bpm" min="56" max="112" step="1" value="80">
+        <p class="hint">Keep this fixed. Most good putters sit between 70 and 90 BPM.</p>
+      </div>
+
+      <div class="field">
+        <span class="label">Back : through rhythm</span>
+        <div class="seg full" role="group" aria-label="Rhythm">
+          <button id="r2" aria-pressed="true">2 : 1 tour rhythm</button>
+          <button id="r1" aria-pressed="false">1 : 1 pendulum</button>
+        </div>
+        <p class="hint" id="ratioHint">The backstroke takes twice as long as the forward stroke to the ball.</p>
+      </div>
+
+      <details class="more" id="more">
+        <summary>Green and fine tuning</summary>
+        <div class="grid">
+          <div class="field">
+            <div class="field-head"><label class="label" for="stimp">Green speed (Stimp)</label><output id="stimpOut">10.0</output></div>
+            <input type="range" id="stimp" min="6" max="14" step="0.5" value="10">
+          </div>
+          <div class="field">
+            <div class="field-head"><label class="label" for="slope">Slope</label><output id="slopeOut">flat</output></div>
+            <input type="range" id="slope" min="-4" max="4" step="0.5" value="0">
+            <p class="hint" id="slopeHint">Positive is uphill.</p>
+          </div>
+          <div class="field">
+            <div class="field-head"><label class="label" for="cal">Personal feel</label><output id="calOut">±0%</output></div>
+            <input type="range" id="cal" min="-30" max="30" step="1" value="0">
+            <p class="hint">If your putts end short at this tempo, add a few percent.</p>
+          </div>
+          <label class="check"><input type="checkbox" id="past" checked> Finish 40 cm past the cup</label>
+          <label class="check"><input type="checkbox" id="topClick"> Soft click at the top of the backstroke</label>
+        </div>
+      </details>
+    </aside>
+  </div>
+
+  <section class="ladder" aria-label="Stroke length per distance">
+    <div class="ladder-head">
+      <h2>Same tempo, different length</h2>
+      <p id="ladderSub">Every row takes 0.75 s from tic to toc. Tap a row to practise it.</p>
+    </div>
+    <div class="rows" id="rows"></div>
+  </section>
+
+  <section class="notes">
+    <div><h3>Why one tempo</h3><p>When the time from takeaway to impact never changes, the only variable left is how far the putter goes back. Distance control becomes a question of length, which is far easier to repeat than a sense of hit.</p></div>
+    <div><h3>How the length is worked out</h3><p>The Stimp speed gives the green's rolling friction. From that the app gets the ball speed needed for the distance, divides by the putter's energy transfer (about 1.3) and finds the backstroke that reaches that speed in the forward-stroke time.</p></div>
+    <div><h3>How to practise</h3><p>Start with the ladder at 1, 3 and 6 metres. Let the tic start the putter moving and let the toc arrive as the ball is struck. Watch the ruler marks to learn what each length feels like.</p></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const FT = 0.3048, IN = 0.0254;
+  const RAMP_V = 1.83;        // m/s ball speed leaving a Stimpmeter
+  const SMASH = 1.3;          // ball speed / putter speed
+  const PAST = 0.4;           // metres past the cup
+  const CYCLE_BEATS = 4;      // tic, toc, then two beats to reset
+
+  const S = { units: 'm', dist: 3, bpm: 80, ratio: 2, stimp: 10, slope: 0, cal: 0, past: true, topClick: false, sound: true };
+  try { Object.assign(S, JSON.parse(localStorage.getItem('putt-tempo') || '{}')); } catch (e) {}
+  const save = () => { try { localStorage.setItem('putt-tempo', JSON.stringify(S)); } catch (e) {} };
+
+  function model(p, distOverride) {
+    const d = distOverride ?? p.dist;
+    const beat = 60 / p.bpm;
+    const Tb = beat * p.ratio / (p.ratio + 1);
+    const Td = beat / (p.ratio + 1);
+    const stimpM = p.stimp * FT;
+    const a0 = RAMP_V * RAMP_V / (2 * stimpM);               // flat rolling deceleration
+    let a = a0 + (5 / 7) * 9.81 * (p.slope / 100);            // rolling ball on a slope
+    const tooSteep = a < 0.08;
+    if (tooSteep) a = 0.08;
+    const roll = d + (p.past ? PAST : 0);
+    const v0 = Math.sqrt(2 * a * roll);
+    const vh = v0 / SMASH;
+    // Forward stroke modelled as a quarter sine from the top (speed 0) to impact (peak speed):
+    // x(t) = -A cos(pi t / 2Td)  ->  v_impact = A * pi / (2 Td)
+    const A = vh * 2 * Td / Math.PI * (1 + p.cal / 100);
+    return { beat, Tb, Td, a, v0, vh, A, roll, tooSteep };
+  }
+
+  // ---------- formatting ----------
+  const fmtDist = m => S.units === 'm' ? `${m.toFixed(m < 10 ? 1 : 0)} m` : `${Math.round(m / FT)} ft`;
+  const lenParts = m => S.units === 'm' ? [Math.round(m * 100), 'cm'] : [(m / IN).toFixed(1), 'in'];
+  const fmtLen = m => lenParts(m).join(' ');
+
+  // ---------- controls ----------
+  const dist = $('dist'), bpm = $('bpm'), stimp = $('stimp'), slope = $('slope'), cal = $('cal');
+
+  function configDistSlider() {
+    if (S.units === 'm') { dist.min = 0.5; dist.max = 20; dist.step = 0.5; dist.value = S.dist; }
+    else { dist.min = 2; dist.max = 65; dist.step = 1; dist.value = Math.round(S.dist / FT); }
+    $('uM').setAttribute('aria-pressed', S.units === 'm');
+    $('uF').setAttribute('aria-pressed', S.units === 'ft');
+  }
+  function setPressed() {
+    $('r2').setAttribute('aria-pressed', S.ratio === 2);
+    $('r1').setAttribute('aria-pressed', S.ratio === 1);
+    $('snd').setAttribute('aria-pressed', S.sound);
+    $('ratioHint').textContent = S.ratio === 2
+      ? 'The backstroke takes twice as long as the forward stroke to the ball.'
+      : 'Back and through take the same time, like a clock pendulum.';
+  }
+
+  function ladderDistances() {
+    return S.units === 'm' ? [1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12, 15] : [3, 5, 8, 10, 15, 20, 25, 30, 40, 50];
+  }
+
+  function render() {
+    const m = model(S);
+    $('distOut').textContent = fmtDist(S.dist);
+    $('distHint').textContent = `backstroke ${fmtLen(m.A)}`;
+    $('bpmOut').textContent = `${S.bpm} BPM`;
+    $('stimpOut').textContent = S.stimp.toFixed(1);
+    $('slopeOut').textContent = S.slope === 0 ? 'flat' : `${S.slope > 0 ? '+' : ''}${S.slope}% ${S.slope > 0 ? 'uphill' : 'downhill'}`;
+    $('slopeHint').textContent = m.tooSteep ? 'This downhill is faster than the green can stop the ball. The length shown is a minimum.' : 'Positive is uphill.';
+    $('slopeHint').className = m.tooSteep ? 'hint warn' : 'hint';
+    $('calOut').textContent = S.cal === 0 ? '±0%' : `${S.cal > 0 ? '+' : ''}${S.cal}%`;
+    $('timing').textContent = `back ${m.Tb.toFixed(2)} s · through ${m.Td.toFixed(2)} s`;
+    const [bv, bu] = lenParts(m.A);
+    $('rBack').innerHTML = `${bv}<small>${bu}</small>`;
+    $('rThru').innerHTML = `${bv}<small>${bu}</small>`;
+    $('rHead').innerHTML = `${m.vh.toFixed(2)}<small>m/s</small>`;
+    $('rBall').innerHTML = `${m.v0.toFixed(2)}<small>m/s</small>`;
+    $('past').checked = S.past; $('topClick').checked = S.topClick;
+    $('ladderSub').textContent = `Every row takes ${m.beat.toFixed(2)} s from tic to toc. Tap a row to practise it.`;
+
+    const ds = ladderDistances();
+    const lens = ds.map(d => model(S, S.units === 'm' ? d : d * FT).A);
+    const max = Math.max(...lens, m.A);
+    const curVal = S.units === 'm' ? S.dist : Math.round(S.dist / FT);
+    $('rows').innerHTML = ds.map((d, i) => `
+      <button class="row${Math.abs(d - curVal) < 1e-6 ? ' cur' : ''}" data-d="${d}">
+        <span class="d">${S.units === 'm' ? d + ' m' : d + ' ft'}</span>
+        <span class="bar"><span style="width:${(lens[i] / max * 100).toFixed(1)}%"></span></span>
+        <span class="len">${fmtLen(lens[i])}</span>
+      </button>`).join('');
+    save();
+  }
+
+  dist.addEventListener('input', () => { S.dist = S.units === 'm' ? +dist.value : +dist.value * FT; render(); });
+  bpm.addEventListener('input', () => { S.bpm = +bpm.value; render(); });
+  stimp.addEventListener('input', () => { S.stimp = +stimp.value; render(); });
+  slope.addEventListener('input', () => { S.slope = +slope.value; render(); });
+  cal.addEventListener('input', () => { S.cal = +cal.value; render(); });
+  $('past').addEventListener('change', e => { S.past = e.target.checked; render(); });
+  $('topClick').addEventListener('change', e => { S.topClick = e.target.checked; render(); });
+  $('uM').addEventListener('click', () => { S.units = 'm'; S.dist = Math.min(20, Math.max(0.5, Math.round(S.dist * 2) / 2)); configDistSlider(); render(); });
+  $('uF').addEventListener('click', () => { S.units = 'ft'; S.dist = Math.min(65, Math.max(2, Math.round(S.dist / FT))) * FT; configDistSlider(); render(); });
+  $('r2').addEventListener('click', () => { S.ratio = 2; setPressed(); render(); });
+  $('r1').addEventListener('click', () => { S.ratio = 1; setPressed(); render(); });
+  $('rows').addEventListener('click', e => {
+    const b = e.target.closest('.row'); if (!b) return;
+    const d = +b.dataset.d; S.dist = S.units === 'm' ? d : d * FT; configDistSlider(); render();
+  });
+
+  // ---------- audio clock & scheduler ----------
+  let ac = null, master = null, running = false, timer = null, nextCycle = 0, wake = null;
+  const cycles = [], events = [];
+
+  function click(t, type) {
+    events.push({ t, type });
+    if (type === 'top' && !S.topClick) return;
+    const o = ac.createOscillator(), g = ac.createGain();
+    const f = type === 'tic' ? 1750 : type === 'toc' ? 980 : 2600;
+    const vol = type === 'top' ? 0.12 : 0.55;
+    o.type = type === 'toc' ? 'sine' : 'triangle';
+    o.frequency.setValueAtTime(f, t);
+    o.frequency.exponentialRampToValueAtTime(f * 0.6, t + 0.06);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (type === 'toc' ? 0.14 : 0.07));
+    o.connect(g).connect(master);
+    o.start(t); o.stop(t + 0.2);
+  }
+
+  function schedule() {
+    while (nextCycle < ac.currentTime + 0.25) {
+      const m = model(S);
+      cycles.push({ start: nextCycle, ...m });
+      click(nextCycle, 'tic');
+      click(nextCycle + m.Tb, 'top');
+      click(nextCycle + m.beat, 'toc');
+      nextCycle += CYCLE_BEATS * m.beat;
+    }
+    while (cycles.length > 4) cycles.shift();
+    while (events.length > 12) events.shift();
+  }
+
+  async function start() {
+    try {
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      if (!master) { master = ac.createGain(); master.connect(ac.destination); }
+      await ac.resume();
+    } catch (e) { return; }
+    master.gain.value = S.sound ? 1 : 0;
+    running = true; cycles.length = 0; events.length = 0;
+    nextCycle = ac.currentTime + 0.5;
+    schedule(); timer = setInterval(schedule, 25);
+    $('go').textContent = 'Stop'; $('go').setAttribute('aria-pressed', 'true');
+    try { wake = await navigator.wakeLock?.request('screen'); } catch (e) { wake = null; }
+  }
+  function stop() {
+    running = false; clearInterval(timer);
+    if (master) { master.gain.setValueAtTime(0, ac.currentTime); }
+    $('go').textContent = 'Start tempo'; $('go').setAttribute('aria-pressed', 'false');
+    try { wake?.release(); } catch (e) {} wake = null;
+  }
+  $('go').addEventListener('click', () => running ? stop() : start());
+  $('snd').addEventListener('click', () => { S.sound = !S.sound; setPressed(); if (master && running) master.gain.value = S.sound ? 1 : 0; save(); });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !/INPUT|BUTTON|SUMMARY/.test(document.activeElement.tagName)) { e.preventDefault(); running ? stop() : start(); }
+  });
+
+  // ---------- stroke kinematics ----------
+  // Returns putter-head horizontal offset (m, + toward target) and ball offset for a cycle at local time t.
+  function pose(c, t) {
+    const { Tb, Td, beat, A, v0, a } = c;
+    let x;
+    if (t < 0) x = 0;
+    else if (t < Tb) x = -A * (1 - Math.cos(Math.PI * t / Tb)) / 2;                // smooth takeaway
+    else if (t < beat) x = -A * Math.cos(Math.PI / 2 * (t - Tb) / Td);              // accelerate to impact
+    else if (t < beat + Td) x = A * Math.sin(Math.PI / 2 * (t - beat) / Td);        // mirror follow-through
+    else if (t < 2.4 * beat) x = A;                                                  // hold the finish
+    else if (t < 3.4 * beat) x = A * (1 + Math.cos(Math.PI * (t - 2.4 * beat) / beat)) / 2; // return
+    else x = 0;
+    let ball = BALL0, alpha = 1, rolling = false;
+    if (t >= beat) {
+      const tb = Math.min(t - beat, v0 / a);
+      ball = BALL0 + v0 * tb - a * tb * tb / 2; rolling = true;
+      if (t > 2.4 * beat) alpha = Math.max(0, 1 - (t - 2.4 * beat) / (0.4 * beat));
+    }
+    if (t >= 3.0 * beat) { ball = BALL0; rolling = false; alpha = Math.min(1, (t - 3.0 * beat) / (0.4 * beat)); }
+    return { x, ball, alpha, rolling };
+  }
+
+  // ---------- drawing ----------
+  const cv = $('cv'), cx = cv.getContext('2d');
+  const BALL0 = 0.04, BALL_R = 0.0214;
+  const PIVOT_Y = 1.22, L_HEAD = 1.19, L_HANDS = 0.6;
+  let W = 0, H = 0, dpr = 1, colors = {};
+
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    for (const k of ['ink', 'muted', 'line', 'green', 'beat', 'surface', 'ball', 'green-soft']) colors[k] = cs.getPropertyValue('--' + k).trim();
+  }
+  readColors();
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', readColors);
+  new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+
+  function resize() {
+    const r = cv.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  }
+  new ResizeObserver(resize).observe(cv); resize();
+
+  function draw(now) {
+    cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cx.clearRect(0, 0, W, H);
+    if (!W) return;
+
+    let c = null, t = 0;
+    if (running && ac) {
+      const at = ac.currentTime;
+      for (const k of cycles) if (k.start <= at) c = k;
+      if (c) t = at - c.start;
+    }
+    const m = c || model(S);
+    const p = c ? pose(c, t) : { x: 0, ball: BALL0, alpha: 1, rolling: false };
+
+    // world -> screen
+    const xMin = -0.78, xMax = 0.98, yMin = -0.2, yMax = 1.66;
+    const sc = Math.min(W / (xMax - xMin), H / (yMax - yMin));
+    const ox = (W - (xMax - xMin) * sc) / 2 - xMin * sc;
+    const groundY = H - (0 - yMin) * sc - (H - (yMax - yMin) * sc) / 2;
+    const X = x => ox + x * sc, Y = y => groundY - y * sc;
+    const px = v => v * sc;
+    const fs = Math.max(10, Math.min(13, W / 55));
+
+    // ground + ruler (cm)
+    cx.strokeStyle = colors.line; cx.lineWidth = 1;
+    cx.beginPath(); cx.moveTo(0, Y(0)); cx.lineTo(W, Y(0)); cx.stroke();
+    cx.fillStyle = colors.muted; cx.font = `${fs}px "IBM Plex Mono", ui-monospace, monospace`; cx.textAlign = 'center';
+    const metric = S.units === 'm';
+    const step = metric ? 0.05 : IN * 2, labelEvery = metric ? 2 : 3;
+    for (let i = -Math.ceil(0.75 / step); i * step <= 0.75; i++) {
+      const xx = X(i * step), major = i % labelEvery === 0;
+      cx.beginPath(); cx.moveTo(xx, Y(0)); cx.lineTo(xx, Y(0) + (major ? 9 : 5)); cx.stroke();
+      if (major && i !== 0 && Math.abs(i * step) < 0.72) cx.fillText(metric ? Math.abs(Math.round(i * 5)) : Math.abs(i * 2), xx, Y(0) + 9 + fs + 1);
+    }
+    cx.fillText(metric ? 'cm' : 'in', X(0), Y(0) + 9 + fs + 1);
+
+    // stroke length markers
+    const markH = px(0.32);
+    cx.setLineDash([4, 4]); cx.lineWidth = 1.5;
+    cx.strokeStyle = colors.beat;
+    cx.beginPath(); cx.moveTo(X(-m.A), Y(0)); cx.lineTo(X(-m.A), Y(0) - markH); cx.stroke();
+    cx.strokeStyle = colors.green;
+    cx.beginPath(); cx.moveTo(X(m.A), Y(0)); cx.lineTo(X(m.A), Y(0) - markH); cx.stroke();
+    cx.setLineDash([]);
+    cx.font = `600 ${fs}px "IBM Plex Mono", ui-monospace, monospace`;
+    cx.fillStyle = colors.beat; cx.textAlign = 'center';
+    cx.fillText(fmtLen(m.A), X(-m.A), Y(0) - markH - 6);
+    cx.fillStyle = colors.green; cx.fillText(fmtLen(m.A), X(m.A), Y(0) - markH - 6);
+
+    // head path arc
+    const P = { x: 0, y: PIVOT_Y };
+    const thMax = Math.asin(Math.min(0.95, m.A / L_HEAD));
+    cx.strokeStyle = colors.line; cx.lineWidth = 2;
+    cx.beginPath();
+    for (let k = 0; k <= 40; k++) {
+      const th = -thMax + 2 * thMax * k / 40;
+      const hx = P.x + L_HEAD * Math.sin(th), hy = P.y - L_HEAD * Math.cos(th);
+      k ? cx.lineTo(X(hx), Y(hy)) : cx.moveTo(X(hx), Y(hy));
+    }
+    cx.stroke();
+
+    // golfer (face-on): static body, rocking shoulder-arm-putter pendulum
+    const th = Math.asin(Math.max(-0.95, Math.min(0.95, p.x / L_HEAD)));
+    const rot = (dx, dy) => ({ x: P.x + dx * Math.cos(th) - dy * Math.sin(th), y: P.y + dx * Math.sin(th) + dy * Math.cos(th) });
+    cx.lineCap = 'round'; cx.lineJoin = 'round';
+    // legs & torso
+    cx.strokeStyle = colors.line; cx.lineWidth = px(0.05);
+    cx.beginPath();
+    cx.moveTo(X(-0.17), Y(0.0)); cx.lineTo(X(-0.11), Y(0.82)); cx.lineTo(X(0.11), Y(0.82)); cx.lineTo(X(0.17), Y(0.0));
+    cx.stroke();
+    cx.beginPath(); cx.moveTo(X(0), Y(0.84)); cx.lineTo(X(0), Y(1.3)); cx.stroke();
+    // head
+    cx.fillStyle = colors.line; cx.beginPath(); cx.arc(X(0.0), Y(1.48), px(0.1), 0, Math.PI * 2); cx.fill();
+    // shoulders triangle (rocks with the stroke)
+    const shL = rot(-0.19, 0.08), shR = rot(0.19, 0.08);
+    const hands = { x: P.x + L_HANDS * Math.sin(th), y: P.y - L_HANDS * Math.cos(th) };
+    const head = { x: P.x + L_HEAD * Math.sin(th), y: P.y - L_HEAD * Math.cos(th) };
+    cx.strokeStyle = colors.muted; cx.lineWidth = px(0.035);
+    cx.beginPath(); cx.moveTo(X(shL.x), Y(shL.y)); cx.lineTo(X(shR.x), Y(shR.y)); cx.stroke();
+    cx.lineWidth = px(0.028);
+    cx.beginPath();
+    cx.moveTo(X(shL.x), Y(shL.y)); cx.lineTo(X(hands.x), Y(hands.y));
+    cx.moveTo(X(shR.x), Y(shR.y)); cx.lineTo(X(hands.x), Y(hands.y));
+    cx.stroke();
+    // shaft
+    cx.strokeStyle = colors.ink; cx.lineWidth = Math.max(2, px(0.012));
+    cx.beginPath(); cx.moveTo(X(hands.x), Y(hands.y + 0.03)); cx.lineTo(X(head.x), Y(head.y + 0.02)); cx.stroke();
+    // grip
+    cx.lineWidth = Math.max(5, px(0.03));
+    cx.beginPath(); cx.moveTo(X(hands.x), Y(hands.y + 0.06)); cx.lineTo(X(hands.x + (head.x - hands.x) * 0.18), Y(hands.y + (head.y - hands.y) * 0.18)); cx.stroke();
+    // ball
+    cx.globalAlpha = p.alpha;
+    const br = Math.max(4.5, px(BALL_R));
+    const bx = Math.min(X(p.ball), W + br * 2);
+    cx.fillStyle = colors.ball; cx.strokeStyle = colors.muted; cx.lineWidth = 1;
+    cx.beginPath(); cx.arc(bx, Y(0) - br, br, 0, Math.PI * 2); cx.fill(); cx.stroke();
+    cx.globalAlpha = 1;
+    // putter head
+    const phW = px(0.1), phH = Math.max(6, px(0.028));
+    cx.fillStyle = colors.ink;
+    cx.fillRect(X(head.x) - phW / 2, Y(head.y) - phH, phW, phH);
+    cx.fillStyle = colors.beat; cx.fillRect(X(head.x) - 1, Y(head.y) - phH, 2, phH);
+
+    // labels
+    cx.textAlign = 'left'; cx.font = `${fs}px "IBM Plex Sans", system-ui, sans-serif`; cx.fillStyle = colors.muted;
+    cx.fillText('target →', X(0.6), Y(1.3));
+    if (p.rolling && p.alpha > 0) {
+      cx.textAlign = 'right'; cx.fillStyle = colors.green; cx.font = `600 ${fs}px "IBM Plex Mono", ui-monospace, monospace`;
+      cx.fillText(S.past ? `${fmtDist(m.roll - PAST)} + 40 cm past` : `rolls ${fmtDist(m.roll)}`, W - 12, Y(0) - px(0.12));
+    }
+    if (!running) {
+      cx.textAlign = 'left'; cx.fillStyle = colors.muted; cx.font = `${fs}px "IBM Plex Sans", system-ui, sans-serif`;
+      cx.fillText('Press Start tempo or the space bar', 12, 12 + fs);
+    }
+
+    // beat chips
+    const at = running && ac ? ac.currentTime : -1;
+    let tic = false, toc = false;
+    for (const e of events) {
+      const d = at - e.t;
+      if (d >= 0 && d < 0.14) { if (e.type === 'tic') tic = true; if (e.type === 'toc') toc = true; }
+    }
+    $('chipTic').classList.toggle('on', tic);
+    $('chipToc').classList.toggle('on', toc);
+  }
+
+  function loop(ts) { draw(ts); requestAnimationFrame(loop); }
+
+  // init
+  bpm.value = S.bpm; stimp.value = S.stimp; slope.value = S.slope; cal.value = S.cal;
+  configDistSlider(); setPressed(); render();
+  requestAnimationFrame(loop);
+})();
+</script>
