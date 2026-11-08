@@ -63,6 +63,8 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .chip i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid currentColor; display: block; }
 .chip.tic.on { background: var(--beat-soft); color: var(--beat); border-color: var(--beat); }
 .chip.toc.on { background: var(--green-soft); color: var(--green); border-color: var(--green); }
+.chip.xtra.on { background: var(--line); color: var(--ink); border-color: var(--muted); }
+.sound-note { margin: -8px 0 0; font-size: 12.5px; color: var(--beat); }
 .chip.on i { background: currentColor; }
 .chip b { font-weight: 500; color: var(--ink); }
 .beats .spacer { flex: 1; }
@@ -145,7 +147,9 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
       <div class="canvas-box"><canvas id="cv" role="img" aria-label="Face-on view of a putting stroke swinging like a pendulum over a centimetre ruler"></canvas></div>
       <div class="beats">
         <span class="chip tic" id="chipTic"><i></i><b>tic</b> takeaway</span>
+        <span class="chip xtra" id="chipBack" hidden><i></i><b>tic</b> back</span>
         <span class="chip toc" id="chipToc"><i></i><b>toc</b> impact</span>
+        <span class="chip xtra" id="chipFin" hidden><i></i><b>toc</b> finish</span>
         <span class="spacer"></span>
         <span class="timing" id="timing">back 0.50 s · through 0.25 s</span>
       </div>
@@ -161,6 +165,16 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
       <div class="go">
         <button class="btn-go" id="go" aria-pressed="false">Start tempo</button>
         <button class="btn-sq" id="snd" aria-pressed="true" title="Sound on or off">Sound</button>
+      </div>
+      <p class="sound-note" id="soundNote" hidden></p>
+
+      <div class="field">
+        <span class="label">Clicks</span>
+        <div class="seg full" role="group" aria-label="Click pattern">
+          <button id="pSingle" aria-pressed="true">tic-toc</button>
+          <button id="pDouble" aria-pressed="false">double tic-toc</button>
+        </div>
+        <p class="hint" id="patternHint">Two clicks: takeaway and impact.</p>
       </div>
 
       <div class="distance-card">
@@ -207,7 +221,6 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
             <p class="hint">If your putts end short at this tempo, add a few percent.</p>
           </div>
           <label class="check"><input type="checkbox" id="past" checked> Finish 40 cm past the cup</label>
-          <label class="check"><input type="checkbox" id="topClick"> Soft click at the top of the backstroke</label>
         </div>
       </details>
     </aside>
@@ -237,7 +250,7 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
   const PAST = 0.4;           // metres past the cup
   const CYCLE_BEATS = 4;      // tic, toc, then two beats to reset
 
-  const S = { units: 'm', dist: 3, bpm: 80, ratio: 2, stimp: 10, slope: 0, cal: 0, past: true, topClick: false, sound: true };
+  const S = { units: 'm', dist: 3, bpm: 80, ratio: 2, stimp: 10, slope: 0, cal: 0, past: true, double: false, sound: true };
   try { Object.assign(S, JSON.parse(localStorage.getItem('putt-tempo') || '{}')); } catch (e) {}
   const save = () => { try { localStorage.setItem('putt-tempo', JSON.stringify(S)); } catch (e) {} };
 
@@ -278,6 +291,12 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
     $('r2').setAttribute('aria-pressed', S.ratio === 2);
     $('r1').setAttribute('aria-pressed', S.ratio === 1);
     $('snd').setAttribute('aria-pressed', S.sound);
+    $('pSingle').setAttribute('aria-pressed', !S.double);
+    $('pDouble').setAttribute('aria-pressed', !!S.double);
+    $('chipBack').hidden = $('chipFin').hidden = !S.double;
+    $('patternHint').textContent = S.double
+      ? 'Four clicks: takeaway, top of the backstroke, impact and the end of the follow-through.'
+      : 'Two clicks: takeaway and impact.';
     $('ratioHint').textContent = S.ratio === 2
       ? 'The backstroke takes twice as long as the forward stroke to the ball.'
       : 'Back and through take the same time, like a clock pendulum.';
@@ -303,7 +322,7 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
     $('rThru').innerHTML = `${bv}<small>${bu}</small>`;
     $('rHead').innerHTML = `${m.vh.toFixed(2)}<small>m/s</small>`;
     $('rBall').innerHTML = `${m.v0.toFixed(2)}<small>m/s</small>`;
-    $('past').checked = S.past; $('topClick').checked = S.topClick;
+    $('past').checked = S.past;
     $('ladderSub').textContent = `Every row takes ${m.beat.toFixed(2)} s from tic to toc. Tap a row to practise it.`;
 
     const ds = ladderDistances();
@@ -325,7 +344,8 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
   slope.addEventListener('input', () => { S.slope = +slope.value; render(); });
   cal.addEventListener('input', () => { S.cal = +cal.value; render(); });
   $('past').addEventListener('change', e => { S.past = e.target.checked; render(); });
-  $('topClick').addEventListener('change', e => { S.topClick = e.target.checked; render(); });
+  $('pSingle').addEventListener('click', () => { S.double = false; setPressed(); render(); });
+  $('pDouble').addEventListener('click', () => { S.double = true; setPressed(); render(); });
   $('uM').addEventListener('click', () => { S.units = 'm'; S.dist = Math.min(20, Math.max(0.5, Math.round(S.dist * 2) / 2)); configDistSlider(); render(); });
   $('uF').addEventListener('click', () => { S.units = 'ft'; S.dist = Math.min(65, Math.max(2, Math.round(S.dist / FT))) * FT; configDistSlider(); render(); });
   $('r2').addEventListener('click', () => { S.ratio = 2; setPressed(); render(); });
@@ -339,20 +359,51 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
   let ac = null, master = null, running = false, timer = null, nextCycle = 0, wake = null;
   const cycles = [], events = [];
 
+  // A short silent WAV played through an <audio> element. On iPhone this moves the page into the
+  // "media playback" audio category, so the clicks are heard even with the ring/silent switch on.
+  const unlockEl = (() => {
+    const n = 800, buf = new Uint8Array(44 + n), dv = new DataView(buf.buffer);
+    const str = (o, t) => [...t].forEach((ch, i) => buf[o + i] = ch.charCodeAt(0));
+    str(0, 'RIFF'); dv.setUint32(4, 36 + n, true); str(8, 'WAVEfmt '); dv.setUint32(16, 16, true);
+    dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, 8000, true); dv.setUint32(28, 8000, true);
+    dv.setUint16(32, 1, true); dv.setUint16(34, 8, true); str(36, 'data'); dv.setUint32(40, n, true);
+    buf.fill(128, 44);
+    let bin = ''; buf.forEach(b => bin += String.fromCharCode(b));
+    const el = new Audio('data:audio/wav;base64,' + btoa(bin)); el.loop = true; el.setAttribute('playsinline', '');
+    return el;
+  })();
+  const voices = [];
+
+  // Woodblock-style click: a pitched tone with a fast attack plus a short filtered noise tick.
+  const SOUNDS = {
+    tic:  { f: 1500, len: 0.08, vol: 0.9, wave: 'triangle' },
+    toc:  { f: 820,  len: 0.12, vol: 1.0, wave: 'sine' },
+    back: { f: 1150, len: 0.08, vol: 0.75, wave: 'triangle' },
+    fin:  { f: 620,  len: 0.12, vol: 0.85, wave: 'sine' },
+  };
+  let noiseBuf = null;
   function click(t, type) {
     events.push({ t, type });
-    if (type === 'top' && !S.topClick) return;
+    if ((type === 'back' || type === 'fin') && !S.double) return;
+    const sd = SOUNDS[type];
     const o = ac.createOscillator(), g = ac.createGain();
-    const f = type === 'tic' ? 1750 : type === 'toc' ? 980 : 2600;
-    const vol = type === 'top' ? 0.12 : 0.55;
-    o.type = type === 'toc' ? 'sine' : 'triangle';
-    o.frequency.setValueAtTime(f, t);
-    o.frequency.exponentialRampToValueAtTime(f * 0.6, t + 0.06);
+    o.type = sd.wave;
+    o.frequency.setValueAtTime(sd.f, t);
+    o.frequency.exponentialRampToValueAtTime(sd.f * 0.7, t + sd.len);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + (type === 'toc' ? 0.14 : 0.07));
+    g.gain.exponentialRampToValueAtTime(sd.vol, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + sd.len);
     o.connect(g).connect(master);
-    o.start(t); o.stop(t + 0.2);
+    o.start(t); o.stop(t + sd.len + 0.02);
+    if (!noiseBuf) {
+      noiseBuf = ac.createBuffer(1, Math.round(ac.sampleRate * 0.02), ac.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    }
+    const nz = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain();
+    nz.buffer = noiseBuf; bp.type = 'bandpass'; bp.frequency.value = sd.f * 2; bp.Q.value = 2; ng.gain.value = sd.vol * 0.6;
+    nz.connect(bp).connect(ng).connect(master); nz.start(t);
+    voices.push(o, nz);
+    while (voices.length > 40) voices.shift();
   }
 
   function schedule() {
@@ -360,35 +411,59 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
       const m = model(S);
       cycles.push({ start: nextCycle, ...m });
       click(nextCycle, 'tic');
-      click(nextCycle + m.Tb, 'top');
+      click(nextCycle + m.Tb, 'back');
       click(nextCycle + m.beat, 'toc');
+      click(nextCycle + m.beat + m.Td, 'fin');
       nextCycle += CYCLE_BEATS * m.beat;
     }
     while (cycles.length > 4) cycles.shift();
-    while (events.length > 12) events.shift();
+    while (events.length > 16) events.shift();
   }
 
-  async function start() {
+  function setMaster() {
+    if (!master) return;
+    master.gain.cancelScheduledValues(0);
+    master.gain.setValueAtTime(S.sound ? 1 : 0, ac.currentTime);
+  }
+  function soundNote(msg) { $('soundNote').textContent = msg || ''; $('soundNote').hidden = !msg; }
+
+  function start() {
+    // Everything that unlocks audio runs synchronously inside the tap, before any await.
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try { unlockEl.play().catch(() => {}); } catch (e) {}
     try {
-      ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+      ac = ac || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
       if (!master) { master = ac.createGain(); master.connect(ac.destination); }
-      await ac.resume();
-    } catch (e) { return; }
-    master.gain.value = S.sound ? 1 : 0;
-    running = true; cycles.length = 0; events.length = 0;
-    nextCycle = ac.currentTime + 0.5;
-    schedule(); timer = setInterval(schedule, 25);
-    $('go').textContent = 'Stop'; $('go').setAttribute('aria-pressed', 'true');
-    try { wake = await navigator.wakeLock?.request('screen'); } catch (e) { wake = null; }
+      const b = ac.createBuffer(1, 1, ac.sampleRate), s0 = ac.createBufferSource();
+      s0.buffer = b; s0.connect(ac.destination); s0.start(0);
+    } catch (e) { soundNote('This browser cannot play sound. The animation still runs.'); }
+    const go = () => {
+      setMaster();
+      running = true; cycles.length = 0; events.length = 0;
+      nextCycle = ac.currentTime + 0.5;
+      schedule(); timer = setInterval(schedule, 25);
+      $('go').textContent = 'Stop'; $('go').setAttribute('aria-pressed', 'true');
+      setTimeout(() => {
+        if (running && ac.state !== 'running') soundNote('Sound is blocked. Tap Stop, then Start tempo again. On iPhone, also check the volume buttons.');
+        else soundNote('');
+      }, 700);
+      (async () => { try { wake = await navigator.wakeLock?.request('screen'); } catch (e) { wake = null; } })();
+    };
+    if (!ac) return;
+    const r = ac.resume();
+    if (r && r.then) r.then(go, go); else go();
   }
   function stop() {
     running = false; clearInterval(timer);
-    if (master) { master.gain.setValueAtTime(0, ac.currentTime); }
+    const now = ac ? ac.currentTime : 0;
+    for (const v of voices) { try { v.stop(now); } catch (e) {} }
+    voices.length = 0;
+    try { unlockEl.pause(); } catch (e) {}
     $('go').textContent = 'Start tempo'; $('go').setAttribute('aria-pressed', 'false');
     try { wake?.release(); } catch (e) {} wake = null;
   }
   $('go').addEventListener('click', () => running ? stop() : start());
-  $('snd').addEventListener('click', () => { S.sound = !S.sound; setPressed(); if (master && running) master.gain.value = S.sound ? 1 : 0; save(); });
+  $('snd').addEventListener('click', () => { S.sound = !S.sound; setPressed(); if (running) setMaster(); save(); });
   document.addEventListener('keydown', e => {
     if (e.code === 'Space' && !/INPUT|BUTTON|SUMMARY/.test(document.activeElement.tagName)) { e.preventDefault(); running ? stop() : start(); }
   });
@@ -552,13 +627,12 @@ details.more .grid { display: grid; gap: 16px; margin-top: 14px; }
 
     // beat chips
     const at = running && ac ? ac.currentTime : -1;
-    let tic = false, toc = false;
-    for (const e of events) {
-      const d = at - e.t;
-      if (d >= 0 && d < 0.14) { if (e.type === 'tic') tic = true; if (e.type === 'toc') toc = true; }
-    }
-    $('chipTic').classList.toggle('on', tic);
-    $('chipToc').classList.toggle('on', toc);
+    const lit = {};
+    for (const e of events) { const d = at - e.t; if (d >= 0 && d < 0.14) lit[e.type] = true; }
+    $('chipTic').classList.toggle('on', !!lit.tic);
+    $('chipToc').classList.toggle('on', !!lit.toc);
+    $('chipBack').classList.toggle('on', !!lit.back);
+    $('chipFin').classList.toggle('on', !!lit.fin);
   }
 
   function loop(ts) { draw(ts); requestAnimationFrame(loop); }
